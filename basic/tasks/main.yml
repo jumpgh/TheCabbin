@@ -1,0 +1,130 @@
+
+- name: wi-fi client
+  become: true
+  tags: 
+    - wi-fi
+  block:
+    - name: copy wi-fi client config
+      template: 
+        src: wpa_supplicant.conf
+        dest: /etc/wpa_supplicant/wpa_supplicant.conf
+        owner: root
+        group: root
+        mode: 600
+    - name: override TTL 2 hide raspi from greedy mobile wireless providers
+      lineinfile:
+        path: /etc/sysctl.conf
+        line: net.ipv4.ip_default_ttl = 65
+        state: present
+    - reboot:
+
+- name: wired network client
+  become: true
+  tags:
+    - wired
+  block:
+    - name: copy wired network config
+      template: 
+        src: dhcpcd.conf
+        dest: /etc/dhcpcd.conf
+        owner: root
+        group: root
+        mode: 664
+    - name: clean up cmdline.txt
+      replace:
+        path: /boot/cmdline.txt
+        after: rootwait
+        regexp: ^(.+)$
+    - reboot:
+
+- name: upgrade all packages
+  become: true
+  tags:
+    - basic
+  apt:
+    name: "*"
+    state: latest
+    update_cache: true
+
+- name: 3G_4G usb modem
+  become: true
+  tags:
+    - 3G_4G
+  block:
+  - apt:
+      pkg: [usb-modeswitch, ppp, minicom]
+      state: present
+  - copy:
+      src: "{{ item.src }}"
+      dest: "{{ item.dest }}"
+      owner: root
+      group: root
+      mode: "{{ item.mode }}"
+    with_items:
+      - { src: sakis3g, dest: /usr/local/bin/sakis3g, mode: 755 }
+      - { src: umtskeeper, dest: /usr/local/bin/umtskeeper, mode: 755 }
+      - { src: sakis3g.conf, dest: /etc/sakis3g.conf, mode: 644 }
+      - { src: sakis3g.service, dest: /lib/systemd/system/sakis3g.service, mode: 644 }
+  - reboot:
+
+- name: install useful packages
+  become: true
+  tags:
+    - basic
+  apt:
+    pkg: [git, mc, telnet ]
+    state: present
+    update_cache: yes
+
+- name: mosquitto
+  become: true
+  tags:
+    - hub
+  block:
+  - apt:
+      pkg: [mosquitto, mosquitto-clients]
+      state: present
+  - template:
+      src: mosquitto-users.txt
+      dest: /etc/mosquitto/users.txt
+      owner: root
+      group: root
+      mode: 644
+  - blockinfile:
+      path: /etc/mosquitto/mosquitto.conf
+      block: |
+        password_file /etc/mosquitto/users.txt
+        port 1883
+        listener 9001
+        protocol websockets
+  - command: mosquitto_passwd -U /etc/mosquitto/users.txt
+  - service: 
+      name: mosquitto 
+      enabled: yes
+      state: restarted
+
+- name: node-red
+  become: true
+  tags:
+    - hub
+  block:
+  - apt:
+      pkg: nodered
+      state: present
+  - npm:
+      name: node-red-admin
+      global: yes
+  - name: node-red modules
+    retries: 3
+    become: false
+    npm:
+      name: "{{ item }}"
+      path: ~/.node-red/node_modules
+    with_items:
+      - node-red-dashboard
+      - node-red-contrib-ui-led
+  - service: 
+      name: nodered 
+      enabled: yes
+      state: restarted
+

@@ -1,0 +1,16 @@
+[Unit]
+Description=Sakis3G USB modem utility
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/sakis3g connect
+ExecStop=/usr/bin/sakis3g disconnect
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=sakis3g
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

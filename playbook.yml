@@ -1,0 +1,12 @@
+- name: TheCabbin
+  hosts: hub
+  vars:
+    host_username: pi
+    host_password: raspberry
+    node_red_username: cabbin
+    node_red_password: pa$sw0rd
+    mqtt_username: cabbin
+    mqtt_password: pa$sw0rd
+  roles:
+    - basic
+    

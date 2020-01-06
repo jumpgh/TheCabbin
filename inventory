@@ -1,0 +1,2 @@
+[hub]
+hub.local ansible_ssh_host=raspberrypi  ansible_ssh_user=pi
